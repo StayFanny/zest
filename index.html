@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#43A047">
+<title>zest 🍈</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍈</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2343A047'/><text x='50' y='68' font-size='55' text-anchor='middle'>🍈</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito','Segoe UI',sans-serif;background:#F4FBF4;color:#1B2E1B;min-height:100vh;-webkit-tap-highlight-color:transparent}
+#app{max-width:440px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:20px}
+input:focus{outline:2px solid #4CAF50;outline-offset:-2px}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.97)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.su{animation:slideUp .35s ease forwards}
+.card{background:#fff;border-radius:20px;padding:18px;box-shadow:0 2px 16px rgba(0,0,0,.05);margin-bottom:14px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal-content{background:#fff;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:440px;max-height:75vh;overflow:auto}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ─── THEME: LIME FRESH 🍈 ───
+const C={bg:"#F4FBF4",card:"#FFFFFF",primary:"#4CAF50",secondary:"#81C784",accent:"#2E7D32",success:"#43A047",warning:"#FFD54F",danger:"#EF476F",text:"#1B2E1B",textLight:"#6B7B6B",protein:"#43A047",carbs:"#26C6DA",fat:"#FFD54F",workout:"#7E57C2",routine:"#00897B",g1:"#66BB6A",g2:"#43A047",g3:"#C5E1A5"};
+
+const MEAL_TYPES=[{id:"breakfast",label:"Frühstück",emoji:"🌅"},{id:"lunch",label:"Mittagessen",emoji:"☀️"},{id:"snack",label:"Snack",emoji:"🍎"},{id:"dinner",label:"Abendessen",emoji:"🌙"}];
+
+const FOOD_CATS=[{id:"all",label:"Alle",emoji:"🍽️"},{id:"fav",label:"Favoriten",emoji:"⭐"},{id:"fruehstueck",label:"Frühstück",emoji:"🌅"},{id:"brot",label:"Brot",emoji:"🥖"},{id:"obst",label:"Obst",emoji:"🍎"},{id:"gemuese",label:"Gemüse",emoji:"🥦"},{id:"protein",label:"Protein",emoji:"🥩"},{id:"beilagen",label:"Beilagen",emoji:"🍚"},{id:"snacks",label:"Nüsse & Snacks",emoji:"🥜"},{id:"seeds",label:"Seeds",emoji:"🌱"},{id:"milch",label:"Milch",emoji:"🧀"},{id:"takeaway",label:"Take-Away",emoji:"🥡"},{id:"sushi",label:"Sushi",emoji:"🍣"},{id:"getraenke",label:"Getränke",emoji:"☕"},{id:"sonstiges",label:"Sonstiges",emoji:"🫙"}];
+
+const FOODS=[
+{name:"Haferflocken",cal:370,protein:14,carbs:60,fat:8,cat:"fruehstueck",baseG:50,unit:"g"},
+{name:"Müsli mit Milch",cal:280,protein:10,carbs:42,fat:8,cat:"fruehstueck",baseG:1,unit:"Port."},
+{name:"Porridge mit Banane",cal:290,protein:9,carbs:48,fat:6,cat:"fruehstueck",baseG:1,unit:"Port."},
+{name:"Overnight Oats",cal:310,protein:11,carbs:45,fat:9,cat:"fruehstueck",baseG:1,unit:"Port."},
+{name:"Granola",cal:460,protein:10,carbs:64,fat:20,cat:"fruehstueck",baseG:50,unit:"g"},
+{name:"Ei (gekocht)",cal:78,protein:6,carbs:1,fat:5,cat:"fruehstueck",baseG:1,unit:"Stk"},
+{name:"Rührei (2 Eier)",cal:180,protein:13,carbs:2,fat:14,cat:"fruehstueck",baseG:1,unit:"Port."},
+{name:"Spiegelei",cal:110,protein:7,carbs:0,fat:9,cat:"fruehstueck",baseG:1,unit:"Stk"},
+{name:"Topfenaufstrich",cal:120,protein:8,carbs:3,fat:9,cat:"fruehstueck",baseG:50,unit:"g"},
+{name:"Liptauer",cal:180,protein:8,carbs:2,fat:15,cat:"fruehstueck",baseG:50,unit:"g"},
+{name:"Lachs auf Brot",cal:200,protein:14,carbs:0,fat:16,cat:"fruehstueck",baseG:50,unit:"g"},
+{name:"Semmel",cal:145,protein:5,carbs:28,fat:1,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Vollkornbrot",cal:200,protein:8,carbs:33,fat:3,cat:"brot",baseG:100,unit:"g"},
+{name:"Schwarzbrot",cal:210,protein:6,carbs:40,fat:2,cat:"brot",baseG:100,unit:"g"},
+{name:"Knäckebrot",cal:40,protein:1,carbs:7,fat:1,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Toast",cal:75,protein:3,carbs:14,fat:1,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Croissant",cal:230,protein:5,carbs:26,fat:12,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Laugenstange",cal:190,protein:6,carbs:35,fat:3,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Kipferl",cal:160,protein:4,carbs:22,fat:6,cat:"brot",baseG:1,unit:"Stk"},
+{name:"Banane",cal:89,protein:1,carbs:23,fat:0,cat:"obst",baseG:120,unit:"g"},
+{name:"Apfel",cal:52,protein:0,carbs:14,fat:0,cat:"obst",baseG:150,unit:"g"},
+{name:"Orange",cal:47,protein:1,carbs:12,fat:0,cat:"obst",baseG:130,unit:"g"},
+{name:"Birne",cal:57,protein:0,carbs:15,fat:0,cat:"obst",baseG:180,unit:"g"},
+{name:"Kiwi",cal:61,protein:1,carbs:15,fat:1,cat:"obst",baseG:70,unit:"g"},
+{name:"Erdbeeren",cal:32,protein:1,carbs:7,fat:0,cat:"obst",baseG:150,unit:"g"},
+{name:"Himbeeren",cal:32,protein:1,carbs:6,fat:1,cat:"obst",baseG:125,unit:"g"},
+{name:"Heidelbeeren",cal:57,protein:1,carbs:14,fat:0,cat:"obst",baseG:125,unit:"g"},
+{name:"Kirschen",cal:50,protein:1,carbs:12,fat:0,cat:"obst",baseG:100,unit:"g"},
+{name:"Weintrauben",cal:69,protein:1,carbs:17,fat:0,cat:"obst",baseG:100,unit:"g"},
+{name:"Mango",cal:60,protein:1,carbs:15,fat:0,cat:"obst",baseG:100,unit:"g"},
+{name:"Pfirsich",cal:58,protein:1,carbs:14,fat:0,cat:"obst",baseG:1,unit:"Stk"},
+{name:"Nektarine",cal:62,protein:1,carbs:15,fat:0,cat:"obst",baseG:1,unit:"Stk"},
+{name:"Zwetschken",cal:70,protein:1,carbs:17,fat:0,cat:"obst",baseG:3,unit:"Stk"},
+{name:"Marillen",cal:50,protein:1,carbs:11,fat:0,cat:"obst",baseG:3,unit:"Stk"},
+{name:"Wassermelone",cal:30,protein:1,carbs:8,fat:0,cat:"obst",baseG:200,unit:"g"},
+{name:"Grapefruit",cal:42,protein:1,carbs:10,fat:0,cat:"obst",baseG:0.5,unit:"Stk"},
+{name:"Granatapfel",cal:65,protein:1,carbs:16,fat:0,cat:"obst",baseG:0.5,unit:"Stk"},
+{name:"Salat (gemischt)",cal:25,protein:2,carbs:4,fat:0,cat:"gemuese",baseG:1,unit:"Port."},
+{name:"Gurke",cal:12,protein:1,carbs:2,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Tomate",cal:18,protein:1,carbs:4,fat:0,cat:"gemuese",baseG:1,unit:"Stk"},
+{name:"Karotte",cal:25,protein:1,carbs:6,fat:0,cat:"gemuese",baseG:1,unit:"Stk"},
+{name:"Brokkoli",cal:34,protein:3,carbs:5,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Paprika",cal:30,protein:1,carbs:6,fat:0,cat:"gemuese",baseG:1,unit:"Stk"},
+{name:"Zucchini",cal:17,protein:1,carbs:3,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Spinat",cal:23,protein:3,carbs:3,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Süßkartoffel",cal:90,protein:1,carbs:21,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Avocado",cal:120,protein:2,carbs:6,fat:11,cat:"gemuese",baseG:0.5,unit:"Stk"},
+{name:"Melanzani",cal:25,protein:1,carbs:4,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Kürbis",cal:26,protein:1,carbs:6,fat:0,cat:"gemuese",baseG:200,unit:"g"},
+{name:"Champignons",cal:22,protein:3,carbs:3,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Fenchel",cal:31,protein:1,carbs:7,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Kohlrabi",cal:27,protein:2,carbs:6,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Erbsen",cal:81,protein:5,carbs:14,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Bohnen grün",cal:31,protein:2,carbs:7,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Lauch",cal:31,protein:2,carbs:6,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Rote Rüben",cal:43,protein:2,carbs:10,fat:0,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Mais",cal:86,protein:3,carbs:19,fat:1,cat:"gemuese",baseG:100,unit:"g"},
+{name:"Blumenkohl",cal:25,protein:2,carbs:5,fat:0,cat:"gemuese",baseG:150,unit:"g"},
+{name:"Kartoffeln",cal:77,protein:2,carbs:17,fat:0,cat:"gemuese",baseG:200,unit:"g"},
+{name:"Hühnerbrust",cal:110,protein:21,carbs:0,fat:3,cat:"protein",baseG:150,unit:"g"},
+{name:"Lachs",cal:187,protein:20,carbs:0,fat:12,cat:"protein",baseG:150,unit:"g"},
+{name:"Tofu",cal:80,protein:10,carbs:2,fat:4,cat:"protein",baseG:150,unit:"g"},
+{name:"Thunfisch (Dose)",cal:108,protein:24,carbs:0,fat:1,cat:"protein",baseG:100,unit:"g"},
+{name:"Putenbrust",cal:100,protein:22,carbs:0,fat:1,cat:"protein",baseG:150,unit:"g"},
+{name:"Tempeh",cal:195,protein:20,carbs:8,fat:11,cat:"protein",baseG:100,unit:"g"},
+{name:"Linsen (gekocht)",cal:113,protein:9,carbs:16,fat:0,cat:"protein",baseG:150,unit:"g"},
+{name:"Kichererbsen (gekocht)",cal:120,protein:7,carbs:18,fat:3,cat:"protein",baseG:150,unit:"g"},
+{name:"Proteinshake",cal:150,protein:25,carbs:8,fat:3,cat:"protein",baseG:1,unit:"Port."},
+{name:"Garnelen",cal:85,protein:18,carbs:0,fat:1,cat:"protein",baseG:100,unit:"g"},
+{name:"Rindfleisch",cal:183,protein:26,carbs:0,fat:9,cat:"protein",baseG:150,unit:"g"},
+{name:"Feta",cal:264,protein:14,carbs:4,fat:21,cat:"protein",baseG:50,unit:"g"},
+{name:"Schinken",cal:145,protein:22,carbs:1,fat:6,cat:"protein",baseG:50,unit:"g"},
+{name:"Reis (gekocht)",cal:130,protein:3,carbs:29,fat:0,cat:"beilagen",baseG:150,unit:"g"},
+{name:"Pasta (gekocht)",cal:147,protein:5,carbs:29,fat:1,cat:"beilagen",baseG:150,unit:"g"},
+{name:"Couscous (gekocht)",cal:117,protein:4,carbs:24,fat:0,cat:"beilagen",baseG:150,unit:"g"},
+{name:"Quinoa (gekocht)",cal:120,protein:5,carbs:20,fat:2,cat:"beilagen",baseG:150,unit:"g"},
+{name:"Bulgur (gekocht)",cal:113,protein:4,carbs:23,fat:0,cat:"beilagen",baseG:150,unit:"g"},
+{name:"Paranuss",cal:33,protein:1,carbs:1,fat:3,cat:"snacks",baseG:1,unit:"Stk"},
+{name:"Cashewnüsse",cal:567,protein:17,carbs:30,fat:43,cat:"snacks",baseG:30,unit:"g"},
+{name:"Walnüsse",cal:654,protein:15,carbs:14,fat:63,cat:"snacks",baseG:30,unit:"g"},
+{name:"Mandeln",cal:567,protein:20,carbs:20,fat:50,cat:"snacks",baseG:30,unit:"g"},
+{name:"Haselnüsse",cal:633,protein:15,carbs:17,fat:60,cat:"snacks",baseG:30,unit:"g"},
+{name:"Pistazien",cal:550,protein:20,carbs:27,fat:43,cat:"snacks",baseG:30,unit:"g"},
+{name:"Erdnüsse",cal:567,protein:26,carbs:14,fat:47,cat:"snacks",baseG:30,unit:"g"},
+{name:"Studentenfutter",cal:475,protein:13,carbs:38,fat:30,cat:"snacks",baseG:40,unit:"g"},
+{name:"Dunkle Schokolade 70%",cal:535,protein:8,carbs:46,fat:36,cat:"snacks",baseG:20,unit:"g"},
+{name:"Milchschokolade",cal:540,protein:8,carbs:58,fat:30,cat:"snacks",baseG:20,unit:"g"},
+{name:"Energieriegel",cal:220,protein:8,carbs:30,fat:8,cat:"snacks",baseG:1,unit:"Stk"},
+{name:"Reiswaffel",cal:35,protein:1,carbs:7,fat:0,cat:"snacks",baseG:1,unit:"Stk"},
+{name:"Datteln",cal:100,protein:1,carbs:25,fat:0,cat:"snacks",baseG:3,unit:"Stk"},
+{name:"Tortillachips",cal:489,protein:7,carbs:60,fat:24,cat:"snacks",baseG:30,unit:"g"},
+{name:"Linsenchips",cal:430,protein:18,carbs:52,fat:16,cat:"snacks",baseG:30,unit:"g"},
+{name:"Chiasamen",cal:490,protein:17,carbs:42,fat:31,cat:"seeds",baseG:10,unit:"g"},
+{name:"Leinsamen",cal:534,protein:18,carbs:29,fat:42,cat:"seeds",baseG:10,unit:"g"},
+{name:"Sonnenblumenkerne",cal:580,protein:21,carbs:20,fat:49,cat:"seeds",baseG:20,unit:"g"},
+{name:"Kürbiskerne",cal:556,protein:30,carbs:14,fat:49,cat:"seeds",baseG:20,unit:"g"},
+{name:"Hanfsamen",cal:553,protein:32,carbs:9,fat:49,cat:"seeds",baseG:15,unit:"g"},
+{name:"Sesam",cal:573,protein:18,carbs:23,fat:50,cat:"seeds",baseG:10,unit:"g"},
+{name:"Kokosraspeln",cal:660,protein:6,carbs:6,fat:62,cat:"seeds",baseG:15,unit:"g"},
+{name:"Flohsamen",cal:21,protein:2,carbs:1,fat:0,cat:"seeds",baseG:5,unit:"g"},
+{name:"Joghurt natur",cal:61,protein:3,carbs:5,fat:3,cat:"milch",baseG:150,unit:"g"},
+{name:"Skyr",cal:66,protein:11,carbs:4,fat:0,cat:"milch",baseG:150,unit:"g"},
+{name:"Topfen/Quark",cal:70,protein:12,carbs:4,fat:0,cat:"milch",baseG:150,unit:"g"},
+{name:"Käse",cal:367,protein:23,carbs:0,fat:30,cat:"milch",baseG:30,unit:"g"},
+{name:"Mozzarella",cal:250,protein:18,carbs:2,fat:19,cat:"milch",baseG:50,unit:"g"},
+{name:"Butter",cal:740,protein:1,carbs:0,fat:82,cat:"milch",baseG:10,unit:"g"},
+{name:"Frischkäse",cal:267,protein:6,carbs:3,fat:26,cat:"milch",baseG:30,unit:"g"},
+{name:"Milch",cal:48,protein:3,carbs:5,fat:2,cat:"milch",baseG:200,unit:"ml"},
+{name:"Hafermilch",cal:40,protein:1,carbs:7,fat:2,cat:"milch",baseG:200,unit:"ml"},
+{name:"Cottage Cheese",cal:72,protein:12,carbs:2,fat:2,cat:"milch",baseG:100,unit:"g"},
+{name:"Raclettekäse",cal:357,protein:24,carbs:0,fat:29,cat:"milch",baseG:30,unit:"g"},
+{name:"Brie",cal:334,protein:21,carbs:0,fat:28,cat:"milch",baseG:30,unit:"g"},
+{name:"Ennstaler Steirerkas",cal:380,protein:25,carbs:0,fat:31,cat:"milch",baseG:30,unit:"g"},
+{name:"Magertopfen",cal:65,protein:13,carbs:4,fat:0,cat:"milch",baseG:150,unit:"g"},
+{name:"🥡 Reis + Tofu + Gemüse",cal:450,protein:18,carbs:58,fat:14,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥡 Reis + Huhn + Gemüse",cal:520,protein:28,carbs:58,fat:16,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥡 Pad Thai",cal:550,protein:18,carbs:65,fat:22,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥡 Curry + Reis",cal:580,protein:15,carbs:62,fat:28,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥡 Pho",cal:380,protein:22,carbs:42,fat:12,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥡 Burrito Bowl",cal:550,protein:22,carbs:60,fat:20,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍕 Pizza Margherita",cal:800,protein:28,carbs:90,fat:30,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🍕 Pizza-Stück",cal:270,protein:10,carbs:30,fat:12,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🌯 Wrap/Dürüm",cal:480,protein:20,carbs:45,fat:22,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🍟 Pommes (klein)",cal:250,protein:3,carbs:30,fat:13,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🥩 Schnitzel (paniert)",cal:310,protein:25,carbs:14,fat:18,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🍗 Chicken Nuggets (6)",cal:280,protein:16,carbs:18,fat:16,cat:"takeaway",baseG:6,unit:"Stk"},
+{name:"🥙 Falafel-Teller",cal:520,protein:16,carbs:55,fat:24,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍔 Burger",cal:550,protein:25,carbs:40,fat:30,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🥗 Griechischer Salat",cal:300,protein:8,carbs:12,fat:24,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🫔 Käsespätzle",cal:550,protein:20,carbs:50,fat:28,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍝 Spaghetti Bolognese",cal:520,protein:22,carbs:60,fat:18,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍝 Lasagne",cal:580,protein:25,carbs:42,fat:30,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍣 Avocado Maki (6)",cal:180,protein:3,carbs:28,fat:6,cat:"sushi",baseG:6,unit:"Stk"},
+{name:"🍣 Lachs Maki (6)",cal:190,protein:8,carbs:28,fat:4,cat:"sushi",baseG:6,unit:"Stk"},
+{name:"🍣 Gurken Maki (6)",cal:135,protein:3,carbs:28,fat:0,cat:"sushi",baseG:6,unit:"Stk"},
+{name:"🍣 California Roll (6)",cal:220,protein:7,carbs:30,fat:7,cat:"sushi",baseG:6,unit:"Stk"},
+{name:"🍣 Nigiri Lachs (2)",cal:120,protein:8,carbs:16,fat:2,cat:"sushi",baseG:2,unit:"Stk"},
+{name:"🍣 Edamame",cal:120,protein:12,carbs:9,fat:5,cat:"sushi",baseG:100,unit:"g"},
+{name:"🍣 Miso Suppe",cal:45,protein:3,carbs:5,fat:1,cat:"sushi",baseG:1,unit:"Port."},
+{name:"Kaffee schwarz",cal:2,protein:0,carbs:0,fat:0,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Kaffee mit Milch",cal:30,protein:1,carbs:3,fat:1,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Cappuccino",cal:80,protein:4,carbs:6,fat:4,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Latte Macchiato",cal:120,protein:6,carbs:10,fat:5,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Matcha Latte",cal:110,protein:4,carbs:14,fat:4,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Kakao",cal:150,protein:5,carbs:22,fat:5,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Tee",cal:0,protein:0,carbs:0,fat:0,cat:"getraenke",baseG:1,unit:"Tasse"},
+{name:"Orangensaft",cal:45,protein:1,carbs:11,fat:0,cat:"getraenke",baseG:200,unit:"ml"},
+{name:"Smoothie",cal:60,protein:1,carbs:13,fat:0,cat:"getraenke",baseG:300,unit:"ml"},
+{name:"Bier (0.5l)",cal:215,protein:2,carbs:16,fat:0,cat:"getraenke",baseG:1,unit:"Stk"},
+{name:"Wein",cal:80,protein:0,carbs:3,fat:0,cat:"getraenke",baseG:150,unit:"ml"},
+{name:"Spritzer",cal:90,protein:0,carbs:3,fat:0,cat:"getraenke",baseG:250,unit:"ml"},
+{name:"Olivenöl",cal:884,protein:0,carbs:0,fat:100,cat:"sonstiges",baseG:10,unit:"ml"},
+{name:"Honig",cal:304,protein:0,carbs:82,fat:0,cat:"sonstiges",baseG:15,unit:"g"},
+{name:"Hummus",cal:177,protein:8,carbs:15,fat:10,cat:"sonstiges",baseG:30,unit:"g"},
+{name:"Erdnussbutter",cal:588,protein:25,carbs:20,fat:50,cat:"sonstiges",baseG:15,unit:"g"},
+{name:"Linsensuppe",cal:72,protein:5,carbs:10,fat:1,cat:"sonstiges",baseG:250,unit:"ml"},
+{name:"Gemüsesuppe",cal:32,protein:1,carbs:5,fat:1,cat:"sonstiges",baseG:250,unit:"ml"},
+{name:"Sojasauce",cal:53,protein:8,carbs:5,fat:0,cat:"sonstiges",baseG:15,unit:"ml"},
+{name:"Tahini",cal:595,protein:17,carbs:22,fat:54,cat:"sonstiges",baseG:15,unit:"g"},
+{name:"Pesto",cal:380,protein:5,carbs:6,fat:38,cat:"sonstiges",baseG:15,unit:"g"},
+{name:"Marmelade",cal:250,protein:0,carbs:63,fat:0,cat:"sonstiges",baseG:20,unit:"g"},
+{name:"Nutella",cal:541,protein:6,carbs:57,fat:31,cat:"sonstiges",baseG:15,unit:"g"},
+{name:"Sauerrahm",cal:162,protein:2,carbs:4,fat:15,cat:"sonstiges",baseG:30,unit:"g"},
+{name:"Guacamole",cal:160,protein:2,carbs:9,fat:15,cat:"sonstiges",baseG:50,unit:"g"},
+{name:"Tzatziki",cal:90,protein:3,carbs:4,fat:7,cat:"sonstiges",baseG:50,unit:"g"},
+{name:"Kürbiscremesuppe",cal:40,protein:1,carbs:6,fat:2,cat:"sonstiges",baseG:250,unit:"ml"},
+{name:"Tomatensuppe",cal:48,protein:1,carbs:8,fat:1,cat:"sonstiges",baseG:250,unit:"ml"},
+{name:"Knödel",cal:160,protein:5,carbs:28,fat:3,cat:"sonstiges",baseG:1,unit:"Stk"},
+{name:"Palatschinken (natur)",cal:190,protein:6,carbs:24,fat:8,cat:"sonstiges",baseG:1,unit:"Stk"},
+{name:"Kaiserschmarrn",cal:450,protein:12,carbs:55,fat:18,cat:"sonstiges",baseG:1,unit:"Port."},
+];
+
+const calcFood=(f,qty)=>{const m=qty/f.baseG;return{cal:Math.round(f.cal*m),protein:Math.round(f.protein*m*10)/10,carbs:Math.round(f.carbs*m*10)/10,fat:Math.round(f.fat*m*10)/10}};
+
+const WORKOUTS=[
+{id:"laufen",label:"Laufen",emoji:"🏃‍♀️",calPer30:280,defMin:30},
+{id:"joggen",label:"Joggen (locker)",emoji:"🏃‍♀️",calPer30:210,defMin:30},
+{id:"spazieren",label:"Spazieren",emoji:"🚶‍♀️",calPer30:100,defMin:30},
+{id:"barre",label:"Barre",emoji:"🩰",calPer30:180,defMin:60},
+{id:"pilates",label:"Pilates",emoji:"🧘‍♀️",calPer30:160,defMin:60},
+{id:"yoga",label:"Yoga",emoji:"🧘",calPer30:120,defMin:60},
+{id:"julia",label:"Julia-Workout",emoji:"💪",calPer30:200,defMin:60},
+{id:"radfahren",label:"Radfahren",emoji:"🚴‍♀️",calPer30:240,defMin:30},
+{id:"schwimmen",label:"Schwimmen",emoji:"🏊‍♀️",calPer30:250,defMin:30},
+{id:"hiit",label:"HIIT",emoji:"⚡",calPer30:320,defMin:30},
+{id:"krafttraining",label:"Krafttraining",emoji:"🏋️‍♀️",calPer30:200,defMin:30},
+{id:"wandern",label:"Wandern",emoji:"🥾",calPer30:190,defMin:30},
+{id:"tanzen",label:"Tanzen",emoji:"💃",calPer30:200,defMin:30},
+{id:"sonstiges",label:"Sonstiges",emoji:"🏃",calPer30:180,defMin:30},
+];
+
+const DEFAULT_ROUTINE=[
+{category:"supplements",label:"Supplements",emoji:"💊",items:[
+{id:"bioscalin",label:"Bioscalin",emoji:"💊"},{id:"vitamind",label:"Vitamin D",emoji:"☀️"},{id:"zink",label:"Zink",emoji:"🛡️"},{id:"magnesium",label:"Magnesium",emoji:"⚡"},{id:"eisen",label:"Eisen",emoji:"🩸"},{id:"creatine",label:"Creatine",emoji:"💪"},{id:"paranuss",label:"Paranuss",emoji:"🥜"}
+]},
+{category:"pflege",label:"Pflege",emoji:"✨",items:[
+{id:"haarwasser",label:"Haarwasser",emoji:"💆‍♀️"},{id:"zahnseide",label:"Zahnseide",emoji:"🦷"},{id:"gesichtsreinigung",label:"Gesichtsreinigung",emoji:"🧴"},{id:"zahngel",label:"Zahngel",emoji:"🪥",weekday:4}
+]},
+];
+
+const TIPS=[
+"💧 Trink ein großes Glas Wasser! Dein Körper braucht mindestens 2 Liter am Tag.",
+"🍵 Wie wär's mit einem Matcha Latte? Voll mit Antioxidantien und gibt sanfte Energie.",
+"☕ Ein warmer Kakao am Nachmittag hebt die Stimmung – mit Hafermilch besonders gut!",
+"🍬 Wusstest du? Zu viel Zucker fördert Entzündungen, schadet der Haut und stört den Schlaf.",
+"🏃‍♀️ Nur 15 Minuten Bewegung können deine Stimmung schon deutlich heben! Mach ein kurzes Workout.",
+"🌙 Versuch nach 20 Uhr nichts Schweres mehr zu essen – dein Schlaf wird viel besser.",
+"😴 Bildschirm weg, ab ins Bett! 7-8 Stunden Schlaf sind Gold für Regeneration und Wohlbefinden.",
+"💧 Dein Körper verwechselt Durst oft mit Hunger. Trink erstmal ein Glas Wasser!",
+"🍋 Starte den Tag mit warmem Zitronenwasser – gut für die Verdauung und das Immunsystem.",
+"🧘‍♀️ 5 Minuten Stretching am Morgen machen den ganzen Tag angenehmer.",
+"🍫 Dunkle Schokolade (70%+) in kleinen Mengen ist besser als Milchschokolade – weniger Zucker, mehr Flavonoide.",
+"💪 Proteinreich essen hilft beim Sattbleiben und unterstützt die Muskelregeneration.",
+"🌙 Ab 19 Uhr die Küche schließen – dein Magen und dein Schlaf werden es dir danken!",
+"🛌 Abends nichts mehr essen = bessere Verdauung, tieferer Schlaf und mehr Energie am Morgen.",
+"✨ Du brauchst den Snack am Abend nicht. Trink einen Tee und gönn dir Ruhe stattdessen.",
+"🧠 Abendliches Essen ist oft Gewohnheit, nicht Hunger. Frag dich: Hab ich wirklich Hunger oder Langeweile?",
+"💤 Wer 3 Stunden vor dem Schlafen aufhört zu essen, schläft nachweislich besser und regeneriert schneller.",
+"🍵 Statt Abend-Snack: Kräutertee, ein Buch und früh ins Bett. Dein Körper macht den Rest.",
+];
+
+const DAYS=["Mo","Di","Mi","Do","Fr","Sa","So"];
+const dateKey=d=>d.toISOString().split("T")[0];
+const todayKey=()=>dateKey(new Date());
+const getWeekDates=()=>{const n=new Date(),d=n.getDay(),m=new Date(n);m.setDate(n.getDate()-(d===0?6:d-1));return Array.from({length:7},(_,i)=>{const x=new Date(m);x.setDate(m.getDate()+i);return x})};
+const time=()=>new Date().toLocaleTimeString("de-AT",{hour:"2-digit",minute:"2-digit"});
+
+// ─── Storage ───
+function load(k,def){try{const v=localStorage.getItem("z-"+k);return v?JSON.parse(v):def}catch(e){return def}}
+function save(k,v){try{localStorage.setItem("z-"+k,JSON.stringify(v))}catch(e){}}
+
+// ─── State ───
+let S={
+  view:"home",meals:load("meals",{}),wk:load("wk",{}),routine:load("routine",{}),
+  customRoutine:load("croutine",[]),favs:load("favs",[]),
+  cfg:load("cfg",{cal:1800,protein:90,carbs:200,fat:60}),
+  mealType:"breakfast",search:"",foodCat:"all",
+  portionFood:null,portionQty:"",showCustom:false,
+  cf:{name:"",cal:"",protein:"",carbs:"",fat:""},
+  showCfg:false,tmpCfg:null,selWk:null,wkMin:30,
+  editItem:null,editVals:{},showAddRoutine:false,
+  newRoutineLabel:"",newRoutineDays:7,
+};
+S.tmpCfg={...S.cfg};
+
+function set(updates){Object.assign(S,updates);render()}
+function saveAll(){save("meals",S.meals);save("wk",S.wk);save("routine",S.routine);save("croutine",S.customRoutine);save("favs",S.favs);save("cfg",S.cfg)}
+
+// ─── Helpers ───
+function getTk(){return todayKey()}
+function getTm(){return S.meals[getTk()]||[]}
+function getTw(){return S.wk[getTk()]||[]}
+function getTr(){return S.routine[getTk()]||{}}
+function getAllRoutineItems(){
+  const wd=new Date().getDay();
+  return[...DEFAULT_ROUTINE.flatMap(c=>c.items).filter(i=>!i.weekday||i.weekday===wd),...S.customRoutine.filter(i=>!i.until||i.until>=getTk())];
+}
+
+function genTipsList(){
+  const tm=getTm(),tw=getTw(),g=S.cfg.cal,mg=S.cfg;
+  const tc=tm.reduce((s,m)=>s+m.cal,0),tp=tm.reduce((s,m)=>s+m.protein,0);
+  const tb=tw.reduce((s,w)=>s+w.cal,0),net=tc-tb,rem=g-net,tips=[];
+  if(!tm.length&&!tw.length){tips.push("🌅 Guten Start! Vergiss nicht, dein Frühstück zu loggen.");tips.push(TIPS[Math.floor(Math.random()*TIPS.length)]);return tips}
+  if(tb>0)tips.push("🔥 "+Math.round(tb)+" kcal verbrannt! Mehr Spielraum.");
+  const pct=net/g*100;
+  if(pct>110)tips.push("⚠️ "+Math.round(net-g)+" kcal über Ziel. Kein Stress!");
+  else if(pct>90)tips.push("🎯 Im Zielbereich – weiter so!");
+  else if(rem>500)tips.push("🍽️ Noch ~"+Math.round(rem)+" kcal übrig.");
+  else if(rem>0)tips.push("✨ Fast geschafft! Noch ~"+Math.round(rem)+" kcal.");
+  if(mg.protein>0&&tp<mg.protein*.5&&pct>50)tips.push("💪 Protein: "+Math.round(tp)+"g/"+mg.protein+"g.");
+  tips.push(TIPS[Math.floor(Date.now()/3600000)%TIPS.length]);
+  const h=new Date().getHours();
+  if(h>=18&&h<20)tips.push("🌙 Die Küche darf bald schließen!");
+  if(h>=20){const et=["🌙 Ab jetzt nichts mehr essen!","🛌 Küche zu! Trink einen Tee.","✨ Du brauchst den Abend-Snack nicht.","💤 3h vor Schlafen nix essen = besserer Schlaf!"];tips.push(et[Math.floor(Date.now()/86400000)%et.length])}
+  return tips.slice(0,4);
+}
+
+// ─── Render ───
+function h(tag,props,...ch){
+  const el=document.createElement(tag);
+  if(props)Object.entries(props).forEach(([k,v])=>{
+    if(k==="style"&&typeof v==="object")Object.assign(el.style,v);
+    else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==="className")el.className=v;
+    else if(k==="innerHTML")el.innerHTML=v;
+    else el.setAttribute(k,v);
+  });
+  ch.flat(Infinity).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(c):c)});
+  return el;
+}
+
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML="";
+  saveAll();
+  const tk=getTk(),tm=getTm(),tw=getTw(),tr=getTr();
+  const tc=tm.reduce((s,m)=>s+m.cal,0),tp=tm.reduce((s,m)=>s+m.protein,0);
+  const tca=tm.reduce((s,m)=>s+m.carbs,0),tf=tm.reduce((s,m)=>s+m.fat,0);
+  const tbu=tw.reduce((s,w)=>s+w.cal,0),net=tc-tbu;
+  const allRI=getAllRoutineItems(),rDone=allRI.filter(i=>tr[i.id]).length;
+  const wkDates=getWeekDates();
+
+  // Header
+  const header=h("div",{style:{background:`linear-gradient(135deg,${C.g1},${C.g2} 60%,${C.g3})`,padding:"24px 20px 20px",color:"white",borderRadius:"0 0 28px 28px",boxShadow:"0 8px 32px rgba(76,175,80,.3)",position:"relative",overflow:"hidden"}},
+    h("div",{style:{position:"absolute",top:"-30px",right:"-20px",fontSize:"70px",opacity:.12,pointerEvents:"none"}},"🍈"),
+    h("div",{style:{position:"absolute",bottom:"-15px",left:"20px",fontSize:"45px",opacity:.1,pointerEvents:"none"}},"🍃"),
+    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"4px"}},
+      h("div",{},
+        h("div",{style:{fontSize:"12px",opacity:.85,fontWeight:600}},new Date().toLocaleDateString("de-AT",{weekday:"long",day:"numeric",month:"long"})),
+        h("h1",{style:{fontSize:"26px",fontWeight:900,margin:"2px 0",letterSpacing:"-1px"}},"zest 🍈")
+      ),
+      h("button",{style:{background:"rgba(255,255,255,.2)",border:"none",borderRadius:"12px",padding:"8px 12px",color:"white",fontSize:"18px"},onClick:()=>set({showCfg:!S.showCfg})},"⚙️")
+    ),
+    // Arc SVG
+    h("div",{style:{textAlign:"center",margin:"8px 0"},innerHTML:`<svg width="160" height="90" viewBox="0 0 160 90"><path d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="10" stroke-linecap="round"/><circle cx="80" cy="80" r="60" fill="none" stroke="${net>S.cfg.cal?C.danger:net/S.cfg.cal>.8?"#AEFFC7":"white"}" stroke-width="10" stroke-dasharray="${Math.PI*60}" stroke-dashoffset="${Math.PI*60*(1-Math.min(Math.max(0,net/S.cfg.cal),1))}" stroke-linecap="round" transform="rotate(180 80 80)" style="transition:all .8s"/><text x="80" y="55" text-anchor="middle" font-size="24" font-weight="800" fill="white">${Math.round(net)}</text><text x="80" y="72" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.8)">netto / ${S.cfg.cal} kcal</text>${tbu>0?`<text x="80" y="86" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.6)">(${Math.round(tc)} − ${Math.round(tbu)} verbrannt)</text>`:""}</svg>`}),
+    h("div",{style:{display:"flex",justifyContent:"center",gap:"18px",marginTop:"4px"}},
+      ...[["gegessen",Math.round(tc),"white"],["verbrannt",Math.round(tbu),"#AEFFC7"],["übrig",Math.max(0,Math.round(S.cfg.cal-net)),"white"],["erreicht",Math.round(net/Math.max(S.cfg.cal,1)*100)+"%","white"]].map(([l,v,col])=>
+        h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"16px",fontWeight:800,color:col}},v),h("div",{style:{fontSize:"10px",opacity:.8}},l))
+      )
+    )
+  );
+  app.appendChild(header);
+
+  const content=h("div",{style:{padding:"0 16px",marginTop:"-10px"}});
+  app.appendChild(content);
+
+  // Tab Bar
+  const tabs=[["home","📋","Heute"],["add","➕","Essen"],["workout","🏃‍♀️","Workout"],["routine","✨","Routine"],["stats","📊","Stats"],["tips","💡","Tipps"]];
+  const tabBar=h("div",{style:{display:"flex",gap:"2px",background:"#E8F5E9",borderRadius:"14px",padding:"4px",margin:"14px 0"}},
+    ...tabs.map(([id,em,lb])=>h("button",{style:{flex:1,padding:"9px 2px",border:"none",borderRadius:"11px",fontSize:"10px",fontWeight:S.view===id?700:500,background:S.view===id?"white":"transparent",color:S.view===id?C.primary:C.textLight,boxShadow:S.view===id?"0 2px 8px rgba(0,0,0,.08)":"none",transition:"all .2s"},onClick:()=>set({view:id})},em,h("br"),lb))
+  );
+  content.appendChild(tabBar);
+
+  // Settings
+  if(S.showCfg){
+    const cfgCard=h("div",{className:"card su",style:{border:"2px solid "+C.primary}},
+      h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"14px"}},"🎯 Ziele"),
+      ...[["Kalorien","cal"],["Protein (g)","protein"],["Carbs (g)","carbs"],["Fett (g)","fat"]].map(([l,k])=>{
+        const inp=h("input",{type:"number",value:S.tmpCfg[k],style:{width:"90px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontWeight:700,textAlign:"center"}});
+        inp.addEventListener("input",e=>{S.tmpCfg[k]=Number(e.target.value)});
+        return h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},h("label",{style:{fontSize:"13px",fontWeight:600}},l),inp);
+      }),
+      h("div",{style:{display:"flex",gap:"8px"}},
+        h("button",{style:{flex:1,padding:"10px",background:`linear-gradient(135deg,${C.primary},${C.accent})`,color:"white",border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{S.cfg={...S.tmpCfg};set({showCfg:false})}},"✓ Speichern"),
+        h("button",{style:{flex:1,padding:"10px",background:"#F3F4F6",border:"none",borderRadius:"12px",fontWeight:600},onClick:()=>set({showCfg:false})},"Abbrechen")
+      )
+    );
+    content.appendChild(cfgCard);
+  }
+
+  // ─── HOME ───
+  if(S.view==="home"){
+    const sec=h("div",{className:"su"});
+    // Macros
+    const macroCard=h("div",{className:"card"});
+    macroCard.innerHTML=`<h3 style="font-size:13px;font-weight:700;margin-bottom:12px;color:${C.textLight}">MAKROS</h3><div style="display:flex;justify-content:space-around">${[["Protein",tp,S.cfg.protein,C.protein],["Carbs",tca,S.cfg.carbs,C.carbs],["Fett",tf,S.cfg.fat,C.fat]].map(([n,cur,goal,col])=>{const p=goal>0?Math.min(cur/goal,1):0,r=28,ci=2*Math.PI*r;return`<div style="text-align:center"><svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="#F0EDE8" stroke-width="6"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-dasharray="${ci}" stroke-dashoffset="${ci*(1-p)}" stroke-linecap="round" transform="rotate(-90 35 35)" style="transition:stroke-dashoffset .6s"/><text x="35" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="${C.text}">${Math.round(cur)}</text><text x="35" y="46" text-anchor="middle" font-size="9" fill="${C.textLight}">/${goal}g</text></svg><div style="font-size:12px;font-weight:600;color:${col};margin-top:2px">${n}</div></div>`}).join("")}</div>`;
+    sec.appendChild(macroCard);
+
+    // Workouts
+    if(tw.length){
+      const wkCard=h("div",{className:"card",style:{background:"linear-gradient(135deg,#F5F3FF,#EDE9FE)",border:"1px solid #DDD6FE"}},
+        h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"8px",color:C.workout}},"🏃‍♀️ WORKOUTS"),
+        ...tw.map(w=>h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderRadius:"10px",marginBottom:"3px"}},
+          h("div",{},h("div",{style:{fontSize:"13px",fontWeight:600}},w.emoji+" "+w.label),h("div",{style:{fontSize:"11px",color:C.textLight}},w.duration+"min · "+w.time)),
+          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("span",{style:{fontSize:"13px",fontWeight:700,color:C.success}},"−"+w.cal),h("button",{style:{background:"none",border:"none",fontSize:"16px",color:C.danger,opacity:.6},onClick:()=>{S.wk[tk]=tw.filter(x=>x.id!==w.id);set({})}},"×"))
+        ))
+      );
+      sec.appendChild(wkCard);
+    }
+
+    // Meals
+    const mealCard=h("div",{className:"card"});
+    mealCard.innerHTML=`<h3 style="font-size:13px;font-weight:700;margin-bottom:10px;color:${C.textLight}">MAHLZEITEN</h3>`;
+    if(!tm.length){
+      mealCard.innerHTML+=`<div style="text-align:center;padding:20px 0;color:${C.textLight}"><div style="font-size:32px;margin-bottom:8px">🍽️</div><p style="font-size:14px">Noch keine Einträge.</p></div>`;
+      const btn=h("button",{style:{marginTop:"12px",padding:"10px 24px",background:`linear-gradient(135deg,${C.primary},${C.accent})`,color:"white",border:"none",borderRadius:"12px",fontWeight:700,display:"block",margin:"12px auto 0"},onClick:()=>set({view:"add"})},"Erste Mahlzeit loggen");
+      mealCard.appendChild(btn);
+    } else {
+      MEAL_TYPES.forEach(mt=>{
+        const items=tm.filter(m=>m.mealType===mt.id);if(!items.length)return;
+        const grp=h("div",{style:{marginBottom:"14px"}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"6px"}},
+            h("span",{style:{fontSize:"13px",fontWeight:700}},mt.emoji+" "+mt.label),
+            h("span",{style:{fontSize:"12px",fontWeight:700,color:C.primary}},Math.round(items.reduce((s,m)=>s+m.cal,0))+" kcal")
+          ),
+          ...items.map(item=>h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderRadius:"10px",marginBottom:"3px",cursor:"pointer"},onClick:()=>set({editItem:item,editVals:{name:item.name,cal:item.cal,protein:item.protein,carbs:item.carbs,fat:item.fat}})},
+            h("div",{},h("div",{style:{fontSize:"13px",fontWeight:600}},item.name),h("div",{style:{fontSize:"11px",color:C.textLight}},"P:"+item.protein+"g · C:"+item.carbs+"g · F:"+item.fat+"g"+(item.time?" · "+item.time:""))),
+            h("div",{style:{display:"flex",alignItems:"center",gap:"6px"}},h("span",{style:{fontSize:"13px",fontWeight:700}},item.cal),h("span",{style:{fontSize:"12px",color:C.textLight}},"✏️"))
+          ))
+        );
+        mealCard.appendChild(grp);
+      });
+    }
+    sec.appendChild(mealCard);
+    content.appendChild(sec);
+  }
+
+  // ─── ADD FOOD ───
+  if(S.view==="add"){
+    const sec=h("div",{className:"su"});
+    // Meal type
+    const mtCard=h("div",{className:"card"},
+      h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"10px",color:C.textLight}},"MAHLZEIT"),
+      h("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap"}},
+        ...MEAL_TYPES.map(mt=>h("button",{style:{flex:"1 1 45%",padding:"12px",border:S.mealType===mt.id?"2px solid "+C.primary:"2px solid #E5E7EB",borderRadius:"14px",background:S.mealType===mt.id?"#E8F5E9":"white",fontSize:"14px",fontWeight:S.mealType===mt.id?700:500,color:S.mealType===mt.id?C.primary:C.text},onClick:()=>set({mealType:mt.id})},mt.emoji+" "+mt.label))
+      )
+    );
+    sec.appendChild(mtCard);
+
+    // Food list
+    const foodCard=h("div",{className:"card"});
+    foodCard.innerHTML=`<h3 style="font-size:13px;font-weight:700;margin-bottom:10px;color:${C.textLight}">LEBENSMITTEL</h3>`;
+    const searchInp=h("input",{type:"text",placeholder:"🔍 Suchen...",value:S.search,style:{width:"100%",padding:"12px 14px",border:"2px solid #E5E7EB",borderRadius:"12px",fontSize:"14px",marginBottom:"10px",fontFamily:"inherit"}});
+    searchInp.addEventListener("input",e=>{S.search=e.target.value;render()});
+    foodCard.appendChild(searchInp);
+
+    const catRow=h("div",{style:{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"12px"}},
+      ...FOOD_CATS.map(c=>h("button",{style:{padding:"5px 10px",border:"none",borderRadius:"20px",fontSize:"10px",fontWeight:S.foodCat===c.id?700:500,background:S.foodCat===c.id?C.primary:"#F3F4F6",color:S.foodCat===c.id?"white":C.textLight},onClick:()=>set({foodCat:c.id})},c.emoji+" "+c.label))
+    );
+    foodCard.appendChild(catRow);
+
+    const filtered=FOODS.filter(f=>{
+      if(S.foodCat==="fav")return S.favs.includes(f.name);
+      const ms=!S.search||f.name.toLowerCase().includes(S.search.toLowerCase());
+      const mc=S.foodCat==="all"||f.cat===S.foodCat;
+      return ms&&mc;
+    });
+
+    const list=h("div",{style:{maxHeight:"300px",overflowY:"auto"}});
+    if(!filtered.length)list.innerHTML=`<div style="text-align:center;padding:20px;color:${C.textLight}">Keine Ergebnisse</div>`;
+    else filtered.forEach(f=>{
+      const row=h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},onClick:()=>set({portionFood:f,portionQty:String(f.baseG)})},
+        h("div",{style:{flex:1}},h("div",{style:{fontSize:"13px",fontWeight:600}},(S.favs.includes(f.name)?"⭐ ":"")+f.name),h("div",{style:{fontSize:"11px",color:C.textLight}},f.baseG+f.unit+" · "+f.cal+" kcal")),
+        h("span",{style:{fontSize:"18px",color:C.success}},"+")
+      );
+      list.appendChild(row);
+    });
+    foodCard.appendChild(list);
+    sec.appendChild(foodCard);
+
+    // Custom
+    const customCard=h("div",{className:"card"},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:S.showCustom?"12px":"0"}},
+        h("h3",{style:{fontSize:"13px",fontWeight:700,color:C.textLight}},"EIGENES"),
+        h("button",{style:{background:S.showCustom?"#F3F4F6":`linear-gradient(135deg,${C.primary},${C.accent})`,color:S.showCustom?C.text:"white",border:"none",borderRadius:"10px",padding:"6px 14px",fontSize:"12px",fontWeight:700},onClick:()=>set({showCustom:!S.showCustom})},S.showCustom?"▲":"＋ Eigenes")
+      )
+    );
+    if(S.showCustom){
+      const nameInp=h("input",{type:"text",placeholder:"Name",value:S.cf.name,style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
+      nameInp.addEventListener("input",e=>{S.cf.name=e.target.value});
+      customCard.appendChild(nameInp);
+      const grid=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}});
+      [["cal","kcal"],["protein","Protein"],["carbs","Carbs"],["fat","Fett"]].forEach(([k,l])=>{
+        const inp=h("input",{type:"number",placeholder:l,value:S.cf[k],style:{padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",fontFamily:"inherit"}});
+        inp.addEventListener("input",e=>{S.cf[k]=e.target.value});
+        grid.appendChild(inp);
+      });
+      customCard.appendChild(grid);
+      customCard.appendChild(h("button",{style:{width:"100%",marginTop:"10px",padding:"12px",background:S.cf.name&&S.cf.cal?`linear-gradient(135deg,${C.primary},${C.accent})`:"#E5E7EB",color:S.cf.name&&S.cf.cal?"white":"#999",border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{
+        if(S.cf.name&&S.cf.cal){
+          const e={name:S.cf.name,cal:+S.cf.cal||0,protein:+S.cf.protein||0,carbs:+S.cf.carbs||0,fat:+S.cf.fat||0,mealType:S.mealType,id:Date.now(),time:time()};
+          if(!S.meals[tk])S.meals[tk]=[];S.meals[tk].push(e);
+          S.cf={name:"",cal:"",protein:"",carbs:"",fat:""};S.showCustom=false;render();
+        }
+      }},"✓ Hinzufügen"));
+    }
+    sec.appendChild(customCard);
+    content.appendChild(sec);
+  }
+
+  // ─── WORKOUT ───
+  if(S.view==="workout"){
+    const sec=h("div",{className:"su"});
+    const wkCard=h("div",{className:"card",style:{background:"linear-gradient(135deg,#F5F3FF,#EDE9FE)",border:"1px solid #DDD6FE"}},
+      h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"4px",color:C.workout}},"🏃‍♀️ Workout"),
+      h("p",{style:{fontSize:"12px",color:C.textLight,marginBottom:"14px"}},"Verbrannte kcal werden abgezogen."),
+      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}},
+        ...WORKOUTS.map(w=>h("button",{style:{padding:"14px 10px",border:S.selWk?.id===w.id?"2px solid "+C.workout:"2px solid #DDD6FE",borderRadius:"14px",background:S.selWk?.id===w.id?"#EDE9FE":"white",fontSize:"13px",fontWeight:S.selWk?.id===w.id?700:500,textAlign:"center"},onClick:()=>set({selWk:w,wkMin:w.defMin})},
+          h("div",{style:{fontSize:"24px",marginBottom:"4px"}},w.emoji),w.label,h("div",{style:{fontSize:"10px",color:C.textLight}},"~"+w.calPer30+"/30min")
+        ))
+      )
+    );
+    if(S.selWk){
+      const w=S.selWk;
+      const detail=h("div",{style:{marginTop:"16px",padding:"16px",background:"white",borderRadius:"16px"}},
+        h("div",{style:{fontSize:"15px",fontWeight:700,marginBottom:"12px",textAlign:"center"}},w.emoji+" "+w.label),
+        h("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginBottom:"8px"}},
+          h("button",{style:{width:"36px",height:"36px",borderRadius:"10px",border:"2px solid #DDD6FE",background:"white",fontSize:"18px"},onClick:()=>set({wkMin:Math.max(5,S.wkMin-5)})},"−"),
+          h("div",{style:{textAlign:"center"}},
+            (()=>{const inp=h("input",{type:"number",value:S.wkMin,style:{width:"70px",fontSize:"26px",fontWeight:900,color:C.workout,textAlign:"center",border:"none",background:"transparent",fontFamily:"inherit"}});inp.addEventListener("input",e=>{S.wkMin=Math.max(1,Number(e.target.value)||0)});return inp})(),
+            h("div",{style:{fontSize:"11px",color:C.textLight}},"Minuten")
+          ),
+          h("button",{style:{width:"36px",height:"36px",borderRadius:"10px",border:"2px solid #DDD6FE",background:"white",fontSize:"18px"},onClick:()=>set({wkMin:Math.min(180,S.wkMin+5)})},"＋")
+        ),
+        h("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap",justifyContent:"center",marginBottom:"10px"}},
+          ...[15,20,30,45,60,90].map(d=>h("button",{style:{padding:"6px 14px",borderRadius:"20px",border:S.wkMin===d?"2px solid "+C.workout:"1px solid #DDD6FE",background:S.wkMin===d?"#EDE9FE":"white",fontSize:"12px",fontWeight:600,color:S.wkMin===d?C.workout:C.textLight},onClick:()=>set({wkMin:d})},d+"min"))
+        ),
+        h("div",{style:{textAlign:"center",fontSize:"14px",fontWeight:700,color:C.success,marginBottom:"12px"}},"≈ "+Math.round(w.calPer30/30*S.wkMin)+" kcal"),
+        h("button",{style:{width:"100%",padding:"12px",background:`linear-gradient(135deg,${C.workout},#7C3AED)`,color:"white",border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{
+          const cal=Math.round(w.calPer30/30*S.wkMin);
+          if(!S.wk[tk])S.wk[tk]=[];
+          S.wk[tk].push({...w,cal,duration:S.wkMin,id:Date.now(),time:time()});
+          S.selWk=null;render();
+        }},"✓ Speichern")
+      );
+      wkCard.appendChild(detail);
+    }
+    sec.appendChild(wkCard);
+    if(tw.length){
+      const listCard=h("div",{className:"card"},
+        h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"10px",color:C.textLight}},"HEUTIGE WORKOUTS"),
+        ...tw.map(w=>h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",marginBottom:"4px",borderBottom:"1px solid #F3F4F6"}},
+          h("div",{},h("div",{style:{fontSize:"14px",fontWeight:600}},w.emoji+" "+w.label),h("div",{style:{fontSize:"11px",color:C.textLight}},w.duration+"min · "+w.time)),
+          h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},h("span",{style:{fontSize:"14px",fontWeight:700,color:C.success}},"−"+w.cal),h("button",{style:{background:"none",border:"none",fontSize:"16px",color:C.danger,opacity:.6},onClick:()=>{S.wk[tk]=tw.filter(x=>x.id!==w.id);render()}},"×"))
+        )),
+        h("div",{style:{textAlign:"right",fontSize:"14px",fontWeight:700,color:C.workout,marginTop:"8px"}},"Gesamt: "+Math.round(tbu)+" kcal")
+      );
+      sec.appendChild(listCard);
+    }
+    content.appendChild(sec);
+  }
+
+  // ─── ROUTINE ───
+  if(S.view==="routine"){
+    const sec=h("div",{className:"su"});
+    const wd=new Date().getDay();
+    const rCard=h("div",{className:"card",style:{background:"linear-gradient(135deg,#ECFDF5,#D1FAE5)",border:"1px solid #A7F3D0"}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}},
+        h("h3",{style:{fontSize:"16px",fontWeight:800,color:C.routine}},"✨ Tägliche Routine"),
+        h("div",{style:{fontSize:"13px",fontWeight:700,color:C.routine}},rDone+"/"+allRI.length)
+      ),
+      h("div",{style:{height:"8px",background:"#D1FAE5",borderRadius:"8px",marginBottom:"16px",overflow:"hidden"}},
+        h("div",{style:{height:"100%",width:(allRI.length?rDone/allRI.length*100:0)+"%",background:`linear-gradient(90deg,${C.routine},#34D399)`,borderRadius:"8px",transition:"width .4s"}})
+      )
+    );
+    DEFAULT_ROUTINE.forEach(cat=>{
+      const catDiv=h("div",{style:{marginBottom:"16px"}},
+        h("div",{style:{fontSize:"13px",fontWeight:700,color:C.textLight,marginBottom:"8px"}},cat.emoji+" "+cat.label.toUpperCase())
+      );
+      cat.items.filter(i=>!i.weekday||i.weekday===wd).forEach(item=>{
+        const ch=!!tr[item.id];
+        catDiv.appendChild(h("button",{style:{display:"flex",alignItems:"center",gap:"12px",width:"100%",padding:"12px 14px",background:ch?"white":"rgba(255,255,255,.6)",border:ch?"2px solid "+C.routine:"2px solid #D1FAE5",borderRadius:"14px",marginBottom:"6px",textAlign:"left"},onClick:()=>{
+          if(!S.routine[tk])S.routine[tk]={};S.routine[tk][item.id]=!S.routine[tk][item.id];render();
+        }},
+          h("div",{style:{width:"26px",height:"26px",borderRadius:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",background:ch?C.routine:"#E5E7EB",color:ch?"white":"#CCC",fontWeight:700,flexShrink:0}},ch?"✓":""),
+          h("span",{style:{fontSize:"14px",fontWeight:ch?700:500,color:ch?C.routine:C.text,textDecoration:ch?"line-through":"none",opacity:ch?.7:1}},item.emoji+" "+item.label)
+        ));
+      });
+      rCard.appendChild(catDiv);
+    });
+    // Custom
+    const customItems=S.customRoutine.filter(i=>!i.until||i.until>=tk);
+    if(customItems.length){
+      const custDiv=h("div",{style:{marginBottom:"16px"}},h("div",{style:{fontSize:"13px",fontWeight:700,color:C.textLight,marginBottom:"8px"}},"📌 TEMPORÄR"));
+      customItems.forEach(item=>{
+        const ch=!!tr[item.id];
+        custDiv.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
+          h("button",{style:{display:"flex",alignItems:"center",gap:"12px",flex:1,padding:"12px 14px",background:ch?"white":"rgba(255,255,255,.6)",border:ch?"2px solid "+C.routine:"2px solid #D1FAE5",borderRadius:"14px",marginBottom:"6px",textAlign:"left"},onClick:()=>{
+            if(!S.routine[tk])S.routine[tk]={};S.routine[tk][item.id]=!S.routine[tk][item.id];render();
+          }},
+            h("div",{style:{width:"26px",height:"26px",borderRadius:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",background:ch?C.routine:"#E5E7EB",color:ch?"white":"#CCC",fontWeight:700,flexShrink:0}},ch?"✓":""),
+            h("div",{},h("span",{style:{fontSize:"14px",fontWeight:ch?700:500,color:ch?C.routine:C.text}},item.label),
+              item.until?h("div",{style:{fontSize:"10px",color:C.textLight}},"bis "+new Date(item.until+"T00:00").toLocaleDateString("de-AT",{day:"numeric",month:"short"})):null)
+          ),
+          h("button",{style:{background:"none",border:"none",fontSize:"14px",color:C.danger,opacity:.5},onClick:()=>{S.customRoutine=S.customRoutine.filter(x=>x.id!==item.id);render()}},"×")
+        ));
+      });
+      rCard.appendChild(custDiv);
+    }
+    // Add custom
+    rCard.appendChild(h("button",{style:{width:"100%",padding:"10px",background:"rgba(255,255,255,.7)",border:"2px dashed #A7F3D0",borderRadius:"14px",fontSize:"13px",fontWeight:700,color:C.routine},onClick:()=>set({showAddRoutine:!S.showAddRoutine})},S.showAddRoutine?"▲ Schließen":"＋ Item hinzufügen"));
+    if(S.showAddRoutine){
+      const addDiv=h("div",{style:{marginTop:"10px",padding:"14px",background:"white",borderRadius:"14px"}});
+      const nInp=h("input",{type:"text",placeholder:"Name (z.B. Antibiotikum)",value:S.newRoutineLabel,style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
+      nInp.addEventListener("input",e=>{S.newRoutineLabel=e.target.value});
+      addDiv.appendChild(nInp);
+      const dRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}},h("label",{style:{fontSize:"12px",fontWeight:600,color:C.textLight}},"Für"));
+      const dInp=h("input",{type:"number",value:S.newRoutineDays,style:{width:"60px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",textAlign:"center"}});
+      dInp.addEventListener("input",e=>{S.newRoutineDays=Number(e.target.value)||7});
+      dRow.appendChild(dInp);dRow.appendChild(h("span",{style:{fontSize:"12px",color:C.textLight}},"Tage (0 = dauerhaft)"));
+      addDiv.appendChild(dRow);
+      addDiv.appendChild(h("button",{style:{width:"100%",padding:"10px",background:S.newRoutineLabel?`linear-gradient(135deg,${C.routine},#34D399)`:"#E5E7EB",color:S.newRoutineLabel?"white":"#999",border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{
+        if(S.newRoutineLabel){
+          const until=S.newRoutineDays>0?dateKey(new Date(Date.now()+S.newRoutineDays*86400000)):null;
+          S.customRoutine.push({id:"c_"+Date.now(),label:S.newRoutineLabel,until});
+          S.newRoutineLabel="";S.newRoutineDays=7;S.showAddRoutine=false;render();
+        }
+      }},"✓ Hinzufügen"));
+      rCard.appendChild(addDiv);
+    }
+    if(rDone===allRI.length&&allRI.length>0){
+      rCard.appendChild(h("div",{style:{textAlign:"center",padding:"14px",background:"white",borderRadius:"14px",marginTop:"10px"}},h("div",{style:{fontSize:"28px"}},"🎉"),h("div",{style:{fontSize:"15px",fontWeight:800,color:C.routine}},"Alles erledigt!")));
+    }
+    sec.appendChild(rCard);
+    content.appendChild(sec);
+  }
+
+  // ─── STATS ───
+  if(S.view==="stats"){
+    const sec=h("div",{className:"su"});
+    const wd=wkDates.map((d,i)=>{const k=dateKey(d),dm=S.meals[k]||[],dw=S.wk[k]||[];return{name:DAYS[i],kcal:dm.reduce((s,m)=>s+m.cal,0),burned:dw.reduce((s,w)=>s+w.cal,0),net:dm.reduce((s,m)=>s+m.cal,0)-dw.reduce((s,w)=>s+w.cal,0),isToday:k===tk}});
+    const maxNet=Math.max(...wd.map(d=>Math.abs(d.net)),S.cfg.cal,1);
+    // Bar chart
+    const barCard=h("div",{className:"card"});
+    barCard.innerHTML=`<h3 style="font-size:13px;font-weight:700;margin-bottom:14px;color:${C.textLight}">WOCHE (NETTO)</h3>`;
+    let barSvg=`<svg width="100%" height="160" viewBox="0 0 350 160">`;
+    wd.forEach((d,i)=>{
+      const x=i*50+15,bh=Math.abs(d.net)/maxNet*120,y=140-bh;
+      const col=d.isToday?C.primary:d.net>S.cfg.cal?C.danger:"#D1D5DB";
+      barSvg+=`<rect x="${x}" y="${y}" width="30" rx="6" ry="6" height="${bh}" fill="${col}"/>`;
+      barSvg+=`<text x="${x+15}" y="155" text-anchor="middle" font-size="11" font-weight="600" fill="${d.isToday?C.primary:C.textLight}">${d.name}</text>`;
+      if(d.net>0)barSvg+=`<text x="${x+15}" y="${y-4}" text-anchor="middle" font-size="9" fill="${C.textLight}">${d.net}</text>`;
+    });
+    barSvg+=`</svg>`;
+    barCard.innerHTML+=barSvg;
+    const avg=wd.filter(d=>d.kcal>0);
+    barCard.innerHTML+=`<div style="text-align:center;font-size:12px;color:${C.textLight};margin-top:4px">Ziel: ${S.cfg.cal} · Ø ${avg.length?Math.round(avg.reduce((s,d)=>s+d.net,0)/avg.length):0} kcal/Tag</div>`;
+    sec.appendChild(barCard);
+
+    // Workout week
+    const wkWeek=h("div",{className:"card",style:{background:"linear-gradient(135deg,#F5F3FF,#EDE9FE)",border:"1px solid #DDD6FE"}},
+      h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"10px",color:C.workout}},"🏃‍♀️ WORKOUT-WOCHE"),
+      h("div",{style:{display:"flex",justifyContent:"space-around"}},
+        ...wd.map(d=>h("div",{style:{textAlign:"center"}},
+          h("div",{style:{fontSize:"11px",fontWeight:600,color:d.isToday?C.workout:C.textLight,marginBottom:"4px"}},d.name),
+          h("div",{style:{width:"30px",height:"30px",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700,background:d.burned>0?C.workout:"#F3F4F6",color:d.burned>0?"white":"#CCC",border:d.isToday?"2px solid "+C.workout:"none",margin:"0 auto"}},d.burned>0?"✓":"–"),
+          d.burned>0?h("div",{style:{fontSize:"9px",color:C.workout,marginTop:"2px",fontWeight:600,textAlign:"center"}},d.burned):null
+        ))
+      ),
+      h("div",{style:{textAlign:"center",fontSize:"13px",fontWeight:700,color:C.workout,marginTop:"10px"}},wd.reduce((s,d)=>s+d.burned,0)+" kcal · "+wd.filter(d=>d.burned>0).length+"× trainiert")
+    );
+    sec.appendChild(wkWeek);
+    content.appendChild(sec);
+  }
+
+  // ─── TIPS ───
+  if(S.view==="tips"){
+    const sec=h("div",{className:"su"});
+    const tips=genTipsList();
+    const tipCard=h("div",{className:"card",style:{background:"linear-gradient(135deg,#F1F8E9,#E8F5E9)",border:"1px solid #C8E6C9"}},
+      h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"14px"}},"💡 Deine Tipps"),
+      ...tips.map(t=>h("div",{style:{background:"white",borderRadius:"14px",padding:"14px 16px",marginBottom:"10px",fontSize:"14px",lineHeight:1.5,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}},t))
+    );
+    sec.appendChild(tipCard);
+
+    // Summary
+    const sumCard=h("div",{className:"card"},h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"12px",color:C.textLight}},"📊 ZUSAMMENFASSUNG"));
+    const grid=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}});
+    [["Gegessen",Math.round(tc),"kcal",C.primary],["Verbrannt",Math.round(tbu),"kcal",C.workout],["Netto",Math.round(net)+"/"+S.cfg.cal,"kcal",net>S.cfg.cal?C.danger:C.success],["Protein",Math.round(tp)+"/"+S.cfg.protein,"g",C.protein],["Carbs",Math.round(tca)+"/"+S.cfg.carbs,"g",C.carbs],["Fett",Math.round(tf)+"/"+S.cfg.fat,"g",C.fat]].forEach(([l,v,u,c])=>{
+      grid.appendChild(h("div",{style:{background:"#F9FAFB",borderRadius:"14px",padding:"12px 14px",borderLeft:"4px solid "+c}},
+        h("div",{style:{fontSize:"11px",color:C.textLight,fontWeight:600,marginBottom:"4px"}},l),
+        h("div",{style:{fontSize:"15px",fontWeight:800,color:c}},v+" ",h("span",{style:{fontSize:"11px",fontWeight:600}},u))
+      ));
+    });
+    sumCard.appendChild(grid);
+    sec.appendChild(sumCard);
+
+    // Reset
+    sec.appendChild(h("div",{className:"card"},
+      h("h3",{style:{fontSize:"13px",fontWeight:700,marginBottom:"8px",color:C.textLight}},"🔄 RESET"),
+      h("button",{style:{padding:"8px 16px",background:"#FEE2E2",color:C.danger,border:"none",borderRadius:"10px",fontSize:"13px",fontWeight:700},onClick:()=>{
+        if(confirm("Alle Daten löschen?")){S.meals={};S.wk={};S.routine={};S.customRoutine=[];S.favs=[];S.cfg={cal:1800,protein:90,carbs:200,fat:60};S.tmpCfg={...S.cfg};render()}
+      }},"🗑️ Alles löschen")
+    ));
+    content.appendChild(sec);
+  }
+
+  // ─── MODALS ───
+  // Edit Modal
+  if(S.editItem){
+    const bg=h("div",{className:"modal-bg",onClick:()=>set({editItem:null})});
+    const modal=h("div",{className:"modal-content",onClick:e=>e.stopPropagation()},
+      h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"16px"}},"✏️ Eintrag bearbeiten")
+    );
+    [["name","Name","text"],["cal","Kalorien","number"],["protein","Protein (g)","number"],["carbs","Carbs (g)","number"],["fat","Fett (g)","number"]].forEach(([k,l,t])=>{
+      const inp=h("input",{type:t,value:S.editVals[k]??"",style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontFamily:"inherit",marginTop:"4px"}});
+      inp.addEventListener("input",e=>{S.editVals[k]=t==="number"?Number(e.target.value):e.target.value});
+      modal.appendChild(h("div",{style:{marginBottom:"10px"}},h("label",{style:{fontSize:"12px",fontWeight:600,color:C.textLight}},l),inp));
+    });
+    modal.appendChild(h("div",{style:{display:"flex",gap:"8px",marginTop:"12px"}},
+      h("button",{style:{flex:1,padding:"12px",background:`linear-gradient(135deg,${C.primary},${C.accent})`,color:"white",border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{
+        const i=S.editItem.id;S.meals[tk]=(S.meals[tk]||[]).map(m=>m.id===i?{...m,...S.editVals}:m);S.editItem=null;render();
+      }},"✓ Speichern"),
+      h("button",{style:{padding:"12px",background:"#FEE2E2",color:C.danger,border:"none",borderRadius:"12px",fontWeight:700},onClick:()=>{
+        S.meals[tk]=(S.meals[tk]||[]).filter(m=>m.id!==S.editItem.id);S.editItem=null;render();
+      }},"🗑️")
+    ));
+    bg.appendChild(modal);app.appendChild(bg);
+  }
+
+  // Portion Modal
+  if(S.portionFood){
+    const f=S.portionFood,qty=Number(S.portionQty)||f.baseG,nutr=calcFood(f,qty);
+    const bg=h("div",{className:"modal-bg",onClick:()=>set({portionFood:null})});
+    const modal=h("div",{className:"modal-content",onClick:e=>e.stopPropagation()},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        h("h3",{style:{fontSize:"16px",fontWeight:800}},f.name),
+        h("button",{style:{background:"none",border:"none",fontSize:"22px"},onClick:()=>{
+          S.favs=S.favs.includes(f.name)?S.favs.filter(x=>x!==f.name):[...S.favs,f.name];render();
+        }},S.favs.includes(f.name)?"⭐":"☆")
+      )
+    );
+    const qtyRow=h("div",{style:{display:"flex",alignItems:"center",gap:"12px",margin:"16px 0"}});
+    const qInp=h("input",{type:"number",value:S.portionQty||"",placeholder:String(f.baseG),style:{width:"90px",padding:"12px",border:"2px solid "+C.primary,borderRadius:"12px",fontSize:"18px",fontWeight:700,textAlign:"center",fontFamily:"inherit"}});
+    qInp.addEventListener("input",e=>{S.portionQty=e.target.value;render()});
+    qtyRow.appendChild(qInp);qtyRow.appendChild(h("span",{style:{fontSize:"16px",fontWeight:600,color:C.textLight}},f.unit));
+    modal.appendChild(qtyRow);
+
+    const nutrRow=h("div",{style:{display:"flex",justifyContent:"space-around",padding:"12px 0",background:"#E8F5E9",borderRadius:"12px",marginBottom:"16px"}});
+    [["🔥",nutr.cal+" kcal"],["P",nutr.protein+"g"],["C",nutr.carbs+"g"],["F",nutr.fat+"g"]].forEach(([l,v])=>{
+      nutrRow.appendChild(h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"11px",color:C.textLight}},l),h("div",{style:{fontSize:"14px",fontWeight:700}},v)));
+    });
+    modal.appendChild(nutrRow);
+
+    const presets=f.unit==="g"||f.unit==="ml"?[50,100,150,200,250,300]:[0.5,1,1.5,2,3];
+    const preRow=h("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"14px"}},
+      ...presets.map(q=>h("button",{style:{padding:"6px 14px",borderRadius:"20px",border:Number(S.portionQty)===q?"2px solid "+C.primary:"1px solid #E5E7EB",background:Number(S.portionQty)===q?"#E8F5E9":"white",fontSize:"12px",fontWeight:600,color:Number(S.portionQty)===q?C.primary:C.text},onClick:()=>{S.portionQty=String(q);render()}},q+(f.unit==="g"||f.unit==="ml"?f.unit:"×")))
+    );
+    modal.appendChild(preRow);
+
+    modal.appendChild(h("button",{style:{width:"100%",padding:"14px",background:`linear-gradient(135deg,${C.primary},${C.accent})`,color:"white",border:"none",borderRadius:"14px",fontWeight:700,fontSize:"15px"},onClick:()=>{
+      const nutr2=calcFood(f,qty);
+      const e={...nutr2,name:f.name+((f.unit==="g"||f.unit==="ml")?" ("+qty+f.unit+")":qty!==f.baseG?" (×"+qty+")":""),mealType:S.mealType,id:Date.now(),time:time(),foodKey:f.name};
+      if(!S.meals[tk])S.meals[tk]=[];S.meals[tk].push(e);S.portionFood=null;S.portionQty="";S.search="";render();
+    }},"✓ Hinzufügen als "+(MEAL_TYPES.find(m=>m.id===S.mealType)?.label||"")));
+
+    bg.appendChild(modal);app.appendChild(bg);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
