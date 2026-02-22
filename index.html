@@ -99,7 +99,7 @@ const FOODS=[
 {name:"Kartoffeln",cal:77,protein:2,carbs:17,fat:0,cat:"gemuese",baseG:200,unit:"g"},
 {name:"Hühnerbrust",cal:110,protein:21,carbs:0,fat:3,cat:"protein",baseG:150,unit:"g"},
 {name:"Lachs",cal:187,protein:20,carbs:0,fat:12,cat:"protein",baseG:150,unit:"g"},
-{name:"Tofu",cal:80,protein:10,carbs:2,fat:4,cat:"protein",baseG:150,unit:"g"},
+{name:"Tofu",cal:144,protein:18,carbs:3,fat:9,cat:"protein",baseG:150,unit:"g"},
 {name:"Thunfisch (Dose)",cal:108,protein:24,carbs:0,fat:1,cat:"protein",baseG:100,unit:"g"},
 {name:"Putenbrust",cal:100,protein:22,carbs:0,fat:1,cat:"protein",baseG:150,unit:"g"},
 {name:"Tempeh",cal:195,protein:20,carbs:8,fat:11,cat:"protein",baseG:100,unit:"g"},
@@ -170,6 +170,8 @@ const FOODS=[
 {name:"🫔 Käsespätzle",cal:550,protein:20,carbs:50,fat:28,cat:"takeaway",baseG:1,unit:"Port."},
 {name:"🍝 Spaghetti Bolognese",cal:520,protein:22,carbs:60,fat:18,cat:"takeaway",baseG:1,unit:"Port."},
 {name:"🍝 Lasagne",cal:580,protein:25,carbs:42,fat:30,cat:"takeaway",baseG:1,unit:"Port."},
+{name:"🍕 Pizza Tonno",cal:880,protein:35,carbs:88,fat:38,cat:"takeaway",baseG:1,unit:"Stk"},
+{name:"🥗 Grüner Salat mit Kernöl",cal:180,protein:3,carbs:6,fat:16,cat:"takeaway",baseG:1,unit:"Port."},
 {name:"🍣 Avocado Maki (6)",cal:180,protein:3,carbs:28,fat:6,cat:"sushi",baseG:6,unit:"Stk"},
 {name:"🍣 Lachs Maki (6)",cal:190,protein:8,carbs:28,fat:4,cat:"sushi",baseG:6,unit:"Stk"},
 {name:"🍣 Gurken Maki (6)",cal:135,protein:3,carbs:28,fat:0,cat:"sushi",baseG:6,unit:"Stk"},
@@ -280,6 +282,7 @@ let S={
   showCfg:false,tmpCfg:null,selWk:null,wkMin:30,
   editItem:null,editVals:{},showAddRoutine:false,
   newRoutineLabel:"",newRoutineDays:7,
+  listening:false,speechText:"",
 };
 S.tmpCfg={...S.cfg};
 
@@ -315,6 +318,92 @@ function genTipsList(){
   return tips.slice(0,4);
 }
 
+// ─── Speech Recognition ───
+let recognition=null;
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return null;
+  recognition=new SR();recognition.lang="de-AT";recognition.continuous=false;recognition.interimResults=false;
+  recognition.onresult=e=>{
+    const text=e.results[0][0].transcript.toLowerCase().trim();
+    S.listening=false;S.speechText=text;
+    parseSpeech(text);
+  };
+  recognition.onerror=()=>{S.listening=false;render()};
+  recognition.onend=()=>{if(S.listening){S.listening=false;render()}};
+  return recognition;
+}
+function startListening(){
+  if(!recognition)initSpeech();
+  if(!recognition){alert("Spracherkennung nicht verfügbar");return}
+  S.listening=true;render();
+  try{recognition.start()}catch(e){S.listening=false;render()}
+}
+function parseSpeech(text){
+  // Extract quantity: "250 gramm tofu" → qty=250, rest="tofu"
+  // "eine banane" → qty=1, "halbe pizza" → qty=0.5, "zwei eier" → qty=2
+  let qty=null,rest=text;
+  const numWords={"eine":1,"einen":1,"ein":1,"zwei":2,"drei":3,"vier":4,"fünf":5,"sechs":6,"halbe":0.5,"halber":0.5,"halbes":0.5};
+  // Try number + unit first: "250 gramm", "200 ml", "2 stück"
+  const numMatch=text.match(/(\d+[\.,]?\d*)\s*(gramm|g|ml|stück|stk|portion|port)?\s*(.*)/i);
+  if(numMatch){qty=parseFloat(numMatch[1].replace(",","."));rest=numMatch[3]||""}
+  else{
+    // Try word numbers: "eine banane", "halbe pizza"
+    const words=text.split(/\s+/);
+    for(let i=0;i<words.length;i++){
+      if(numWords[words[i]]!==undefined){qty=numWords[words[i]];rest=words.slice(i+1).join(" ");break}
+    }
+  }
+  // Clean rest
+  rest=rest.replace(/^(von der|von|vom|mit|und)\s+/i,"").trim();
+  if(!rest&&!qty){render();return}
+  // Find best food match
+  let bestFood=null,bestScore=0;
+  const search=rest.toLowerCase();
+  FOODS.forEach(f=>{
+    const fn=f.name.toLowerCase().replace(/[🥡🍕🌯🍟🥩🍗🥙🍔🥗🫔🍝🍣]/g,"").trim();
+    // Exact match
+    if(fn===search){bestFood=f;bestScore=100;return}
+    // Contains
+    if(fn.includes(search)||search.includes(fn)){
+      const score=search.length/fn.length*50+50;
+      if(score>bestScore){bestFood=f;bestScore=score}
+    }
+    // Word overlap
+    const sw=search.split(/\s+/),fw=fn.split(/\s+/);
+    const overlap=sw.filter(w=>fw.some(f2=>f2.includes(w)||w.includes(f2))).length;
+    if(overlap>0){const score=overlap/Math.max(sw.length,fw.length)*60;if(score>bestScore){bestFood=f;bestScore=score}}
+  });
+  if(bestFood){
+    // Calculate qty for this food
+    let finalQty=qty;
+    if(finalQty===null)finalQty=bestFood.baseG;
+    else if(bestFood.unit==="g"||bestFood.unit==="ml"){/* qty is already in g/ml */}
+    else{/* qty is pieces/portions */finalQty=qty}
+    S.portionFood=bestFood;S.portionQty=String(finalQty);S.view="add";
+  } else {
+    S.search=rest;S.view="add";
+  }
+  render();
+}
+
+// ─── Focus Management ───
+let focusInfo=null;
+function saveFocus(){
+  const el=document.activeElement;
+  if(el&&(el.tagName==="INPUT"||el.tagName==="TEXTAREA")){
+    focusInfo={fid:el.dataset.fid||null,start:el.selectionStart,end:el.selectionEnd,val:el.value};
+  } else focusInfo=null;
+}
+function restoreFocus(){
+  if(!focusInfo||!focusInfo.fid)return;
+  setTimeout(()=>{
+    const el=document.querySelector('[data-fid="'+focusInfo.fid+'"]');
+    if(el){el.focus();try{el.setSelectionRange(focusInfo.start,focusInfo.end)}catch(e){}}
+    focusInfo=null;
+  },0);
+}
+
 // ─── Render ───
 function h(tag,props,...ch){
   const el=document.createElement(tag);
@@ -330,6 +419,7 @@ function h(tag,props,...ch){
 }
 
 function render(){
+  saveFocus();
   const app=document.getElementById("app");
   app.innerHTML="";
   saveAll();
@@ -376,7 +466,7 @@ function render(){
     const cfgCard=h("div",{className:"card su",style:{border:"2px solid "+C.primary}},
       h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"14px"}},"🎯 Ziele"),
       ...[["Kalorien","cal"],["Protein (g)","protein"],["Carbs (g)","carbs"],["Fett (g)","fat"]].map(([l,k])=>{
-        const inp=h("input",{type:"number",value:S.tmpCfg[k],style:{width:"90px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontWeight:700,textAlign:"center"}});
+        const inp=h("input",{type:"number",value:S.tmpCfg[k],"data-fid":"cfg-"+k,style:{width:"90px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontWeight:700,textAlign:"center"}});
         inp.addEventListener("input",e=>{S.tmpCfg[k]=Number(e.target.value)});
         return h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},h("label",{style:{fontSize:"13px",fontWeight:600}},l),inp);
       }),
@@ -450,12 +540,19 @@ function render(){
     // Food list
     const foodCard=h("div",{className:"card"});
     foodCard.innerHTML=`<h3 style="font-size:13px;font-weight:700;margin-bottom:10px;color:${C.textLight}">LEBENSMITTEL</h3>`;
-    const searchInp=h("input",{type:"text",placeholder:"🔍 Suchen...",value:S.search,style:{width:"100%",padding:"12px 14px",border:"2px solid #E5E7EB",borderRadius:"12px",fontSize:"14px",marginBottom:"10px",fontFamily:"inherit"}});
-    searchInp.addEventListener("input",e=>{S.search=e.target.value;render()});
-    foodCard.appendChild(searchInp);
+    const searchRow=h("div",{style:{display:"flex",gap:"8px",marginBottom:"10px"}});
+    const searchInp=h("input",{type:"text",placeholder:"🔍 Suchen...",value:S.search,"data-fid":"search",style:{flex:1,padding:"12px 14px",border:"2px solid #E5E7EB",borderRadius:"12px",fontSize:"14px",fontFamily:"inherit"}});
+    searchInp.addEventListener("input",e=>{S.search=e.target.value;updateFoodList()});
+    searchRow.appendChild(searchInp);
+    const micBtn=h("button",{style:{width:"48px",height:"48px",borderRadius:"14px",border:"none",background:S.listening?"linear-gradient(135deg,#EF476F,#FF6B6B)":"linear-gradient(135deg,"+C.primary+","+C.accent+")",color:"white",fontSize:"20px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,animation:S.listening?"pulse 1s infinite":"none"},onClick:()=>{if(S.listening){if(recognition)recognition.stop();S.listening=false;render()}else startListening()}},S.listening?"⏹":"🎙️");
+    searchRow.appendChild(micBtn);
+    foodCard.appendChild(searchRow);
+    if(S.speechText){
+      foodCard.appendChild(h("div",{style:{padding:"8px 12px",background:"#E8F5E9",borderRadius:"10px",marginBottom:"10px",fontSize:"13px",color:C.accent,fontWeight:600}},"🗣️ \""+S.speechText+"\""));
+    }
 
     const catRow=h("div",{style:{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"12px"}},
-      ...FOOD_CATS.map(c=>h("button",{style:{padding:"5px 10px",border:"none",borderRadius:"20px",fontSize:"10px",fontWeight:S.foodCat===c.id?700:500,background:S.foodCat===c.id?C.primary:"#F3F4F6",color:S.foodCat===c.id?"white":C.textLight},onClick:()=>set({foodCat:c.id})},c.emoji+" "+c.label))
+      ...FOOD_CATS.map(c=>h("button",{style:{padding:"5px 10px",border:"none",borderRadius:"20px",fontSize:"10px",fontWeight:S.foodCat===c.id?700:500,background:S.foodCat===c.id?C.primary:"#F3F4F6",color:S.foodCat===c.id?"white":C.textLight},onClick:()=>{S.foodCat=c.id;render()}},c.emoji+" "+c.label))
     );
     foodCard.appendChild(catRow);
 
@@ -466,7 +563,26 @@ function render(){
       return ms&&mc;
     });
 
-    const list=h("div",{style:{maxHeight:"300px",overflowY:"auto"}});
+    const list=h("div",{id:"food-list",style:{maxHeight:"300px",overflowY:"auto"}});
+    function updateFoodList(){
+      const el=document.getElementById("food-list");
+      if(!el)return;
+      el.innerHTML="";
+      const ff=FOODS.filter(f=>{
+        if(S.foodCat==="fav")return S.favs.includes(f.name);
+        const ms=!S.search||f.name.toLowerCase().includes(S.search.toLowerCase());
+        const mc=S.foodCat==="all"||f.cat===S.foodCat;
+        return ms&&mc;
+      });
+      if(!ff.length){el.innerHTML=`<div style="text-align:center;padding:20px;color:${C.textLight}">Keine Ergebnisse</div>`;return}
+      ff.forEach(f=>{
+        const row=h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},onClick:()=>set({portionFood:f,portionQty:String(f.baseG)})},
+          h("div",{style:{flex:1}},h("div",{style:{fontSize:"13px",fontWeight:600}},(S.favs.includes(f.name)?"⭐ ":"")+f.name),h("div",{style:{fontSize:"11px",color:C.textLight}},f.baseG+f.unit+" · "+f.cal+" kcal")),
+          h("span",{style:{fontSize:"18px",color:C.success}},"+")
+        );
+        el.appendChild(row);
+      });
+    }
     if(!filtered.length)list.innerHTML=`<div style="text-align:center;padding:20px;color:${C.textLight}">Keine Ergebnisse</div>`;
     else filtered.forEach(f=>{
       const row=h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},onClick:()=>set({portionFood:f,portionQty:String(f.baseG)})},
@@ -486,12 +602,12 @@ function render(){
       )
     );
     if(S.showCustom){
-      const nameInp=h("input",{type:"text",placeholder:"Name",value:S.cf.name,style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
+      const nameInp=h("input",{type:"text",placeholder:"Name",value:S.cf.name,"data-fid":"cf-name",style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
       nameInp.addEventListener("input",e=>{S.cf.name=e.target.value});
       customCard.appendChild(nameInp);
       const grid=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}});
       [["cal","kcal"],["protein","Protein"],["carbs","Carbs"],["fat","Fett"]].forEach(([k,l])=>{
-        const inp=h("input",{type:"number",placeholder:l,value:S.cf[k],style:{padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",fontFamily:"inherit"}});
+        const inp=h("input",{type:"number",placeholder:l,value:S.cf[k],"data-fid":"cf-"+k,style:{padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",fontFamily:"inherit"}});
         inp.addEventListener("input",e=>{S.cf[k]=e.target.value});
         grid.appendChild(inp);
       });
@@ -527,7 +643,7 @@ function render(){
         h("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginBottom:"8px"}},
           h("button",{style:{width:"36px",height:"36px",borderRadius:"10px",border:"2px solid #DDD6FE",background:"white",fontSize:"18px"},onClick:()=>set({wkMin:Math.max(5,S.wkMin-5)})},"−"),
           h("div",{style:{textAlign:"center"}},
-            (()=>{const inp=h("input",{type:"number",value:S.wkMin,style:{width:"70px",fontSize:"26px",fontWeight:900,color:C.workout,textAlign:"center",border:"none",background:"transparent",fontFamily:"inherit"}});inp.addEventListener("input",e=>{S.wkMin=Math.max(1,Number(e.target.value)||0)});return inp})(),
+            (()=>{const inp=h("input",{type:"number",value:S.wkMin,"data-fid":"wk-min",style:{width:"70px",fontSize:"26px",fontWeight:900,color:C.workout,textAlign:"center",border:"none",background:"transparent",fontFamily:"inherit"}});inp.addEventListener("input",e=>{S.wkMin=Math.max(1,Number(e.target.value)||0)});return inp})(),
             h("div",{style:{fontSize:"11px",color:C.textLight}},"Minuten")
           ),
           h("button",{style:{width:"36px",height:"36px",borderRadius:"10px",border:"2px solid #DDD6FE",background:"white",fontSize:"18px"},onClick:()=>set({wkMin:Math.min(180,S.wkMin+5)})},"＋")
@@ -611,11 +727,11 @@ function render(){
     rCard.appendChild(h("button",{style:{width:"100%",padding:"10px",background:"rgba(255,255,255,.7)",border:"2px dashed #A7F3D0",borderRadius:"14px",fontSize:"13px",fontWeight:700,color:C.routine},onClick:()=>set({showAddRoutine:!S.showAddRoutine})},S.showAddRoutine?"▲ Schließen":"＋ Item hinzufügen"));
     if(S.showAddRoutine){
       const addDiv=h("div",{style:{marginTop:"10px",padding:"14px",background:"white",borderRadius:"14px"}});
-      const nInp=h("input",{type:"text",placeholder:"Name (z.B. Antibiotikum)",value:S.newRoutineLabel,style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
+      const nInp=h("input",{type:"text",placeholder:"Name (z.B. Antibiotikum)",value:S.newRoutineLabel,"data-fid":"routine-name",style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",marginBottom:"8px",fontFamily:"inherit"}});
       nInp.addEventListener("input",e=>{S.newRoutineLabel=e.target.value});
       addDiv.appendChild(nInp);
       const dRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}},h("label",{style:{fontSize:"12px",fontWeight:600,color:C.textLight}},"Für"));
-      const dInp=h("input",{type:"number",value:S.newRoutineDays,style:{width:"60px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",textAlign:"center"}});
+      const dInp=h("input",{type:"number",value:S.newRoutineDays,"data-fid":"routine-days",style:{width:"60px",padding:"8px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"13px",textAlign:"center"}});
       dInp.addEventListener("input",e=>{S.newRoutineDays=Number(e.target.value)||7});
       dRow.appendChild(dInp);dRow.appendChild(h("span",{style:{fontSize:"12px",color:C.textLight}},"Tage (0 = dauerhaft)"));
       addDiv.appendChild(dRow);
@@ -705,6 +821,12 @@ function render(){
     content.appendChild(sec);
   }
 
+  // ─── FLOATING MIC BUTTON ───
+  if(!S.portionFood&&!S.editItem){
+    const fab=h("button",{style:{position:"fixed",bottom:"24px",right:"max(24px, calc(50% - 196px))",width:"56px",height:"56px",borderRadius:"50%",background:S.listening?"linear-gradient(135deg,#EF476F,#FF6B6B)":`linear-gradient(135deg,${C.primary},${C.accent})`,color:"white",fontSize:"24px",border:"none",boxShadow:"0 4px 20px rgba(76,175,80,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,animation:S.listening?"pulse 1s infinite":"none"},onClick:()=>{if(S.listening){if(recognition)recognition.stop();S.listening=false;render()}else startListening()}},S.listening?"⏹":"🎙️");
+    app.appendChild(fab);
+  }
+
   // ─── MODALS ───
   // Edit Modal
   if(S.editItem){
@@ -713,7 +835,7 @@ function render(){
       h("h3",{style:{fontSize:"16px",fontWeight:800,marginBottom:"16px"}},"✏️ Eintrag bearbeiten")
     );
     [["name","Name","text"],["cal","Kalorien","number"],["protein","Protein (g)","number"],["carbs","Carbs (g)","number"],["fat","Fett (g)","number"]].forEach(([k,l,t])=>{
-      const inp=h("input",{type:t,value:S.editVals[k]??"",style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontFamily:"inherit",marginTop:"4px"}});
+      const inp=h("input",{type:t,value:S.editVals[k]??"","data-fid":"edit-"+k,style:{width:"100%",padding:"10px 12px",border:"2px solid #E5E7EB",borderRadius:"10px",fontSize:"14px",fontFamily:"inherit",marginTop:"4px"}});
       inp.addEventListener("input",e=>{S.editVals[k]=t==="number"?Number(e.target.value):e.target.value});
       modal.appendChild(h("div",{style:{marginBottom:"10px"}},h("label",{style:{fontSize:"12px",fontWeight:600,color:C.textLight}},l),inp));
     });
@@ -741,12 +863,16 @@ function render(){
       )
     );
     const qtyRow=h("div",{style:{display:"flex",alignItems:"center",gap:"12px",margin:"16px 0"}});
-    const qInp=h("input",{type:"number",value:S.portionQty||"",placeholder:String(f.baseG),style:{width:"90px",padding:"12px",border:"2px solid "+C.primary,borderRadius:"12px",fontSize:"18px",fontWeight:700,textAlign:"center",fontFamily:"inherit"}});
-    qInp.addEventListener("input",e=>{S.portionQty=e.target.value;render()});
+    const qInp=h("input",{type:"number",value:S.portionQty||"",placeholder:String(f.baseG),"data-fid":"portion-qty",style:{width:"90px",padding:"12px",border:"2px solid "+C.primary,borderRadius:"12px",fontSize:"18px",fontWeight:700,textAlign:"center",fontFamily:"inherit"}});
+    qInp.addEventListener("input",e=>{S.portionQty=e.target.value;
+      const q2=Number(S.portionQty)||f.baseG,n2=calcFood(f,q2);
+      const nd=document.getElementById("portion-nutr");
+      if(nd)nd.innerHTML=[["🔥",n2.cal+" kcal"],["P",n2.protein+"g"],["C",n2.carbs+"g"],["F",n2.fat+"g"]].map(([l,v])=>`<div style="text-align:center"><div style="font-size:11px;color:${C.textLight}">${l}</div><div style="font-size:14px;font-weight:700">${v}</div></div>`).join("");
+    });
     qtyRow.appendChild(qInp);qtyRow.appendChild(h("span",{style:{fontSize:"16px",fontWeight:600,color:C.textLight}},f.unit));
     modal.appendChild(qtyRow);
 
-    const nutrRow=h("div",{style:{display:"flex",justifyContent:"space-around",padding:"12px 0",background:"#E8F5E9",borderRadius:"12px",marginBottom:"16px"}});
+    const nutrRow=h("div",{id:"portion-nutr",style:{display:"flex",justifyContent:"space-around",padding:"12px 0",background:"#E8F5E9",borderRadius:"12px",marginBottom:"16px"}});
     [["🔥",nutr.cal+" kcal"],["P",nutr.protein+"g"],["C",nutr.carbs+"g"],["F",nutr.fat+"g"]].forEach(([l,v])=>{
       nutrRow.appendChild(h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"11px",color:C.textLight}},l),h("div",{style:{fontSize:"14px",fontWeight:700}},v)));
     });
@@ -766,6 +892,8 @@ function render(){
 
     bg.appendChild(modal);app.appendChild(bg);
   }
+
+  restoreFocus();
 }
 
 render();
