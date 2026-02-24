@@ -1,0 +1,15 @@
+{
+  "name": "zest",
+  "short_name": "zest",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F4FBF4",
+  "theme_color": "#4CAF50",
+  "icons": [
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
